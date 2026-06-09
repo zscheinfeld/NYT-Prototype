@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Shape of it All — A Timeline of American Rights</title>
+<style>
+  /* ---------- NYT fonts (local) ---------- */
+  /* Headline / pullquotes — Cheltenham Condensed Bold */
+  @font-face {
+    font-family: "NYT Cheltenham Cond";
+    src: url("fonts/NYTCheltenhamCondBold.otf") format("opentype");
+    font-weight: 700; font-style: normal; font-display: swap;
+  }
+  /* Imperial — roman + italic + bold (one family, multiple faces) */
+  @font-face {
+    font-family: "NYT Imperial";
+    src: url("fonts/NYTImperialRegular.otf") format("opentype");
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "NYT Imperial";
+    src: url("fonts/NYTImperialItalic.otf") format("opentype");
+    font-weight: 400; font-style: italic; font-display: swap;
+  }
+  @font-face {
+    font-family: "NYT Imperial";
+    src: url("fonts/NYTImperialBold.otf") format("opentype");
+    font-weight: 700; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "NYT Imperial";
+    src: url("fonts/NYTImperialBoldItalic.otf") format("opentype");
+    font-weight: 700; font-style: italic; font-display: swap;
+  }
+  /* Numbers — Franklin */
+  @font-face {
+    font-family: "NYT Franklin";
+    src: url("fonts/NYTFranklinMedium.otf") format("opentype");
+    font-weight: 500; font-style: normal; font-display: swap;
+  }
+
+  :root {
+    --chelt: "NYT Cheltenham Cond", Georgia, serif;
+    --imperial: "NYT Imperial", Georgia, serif;             /* italic accent */
+    --imperial-roman: "NYT Imperial", Georgia, serif;       /* roman body */
+    --franklin: "NYT Franklin", "Helvetica Neue", Arial, sans-serif;
+    --hl: #EDDD4F;          /* highlight accent for personal/narrative years */
+
+    --rail-bottom: 64px;
+    --hash-h: 18px;
+    --hash-w: 3px;
+    --ease: cubic-bezier(.45, 0, .2, 1);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: auto; }
+  body { margin: 0; -webkit-font-smoothing: antialiased; }
+
+  /* ---------- Fixed background layer (reacts to scroll) ---------- */
+  .bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-color: #111;
+    transition: background-color 0.9s var(--ease);
+  }
+  .bg .photo {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 0.9s var(--ease);
+  }
+  .bg .scrim {            /* darkening layer for legibility over photos */
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0);
+    transition: background 0.9s var(--ease);
+  }
+
+  /* ---------- Scrolling story ---------- */
+  .story {
+    position: relative;
+    z-index: 10;
+    padding-bottom: 60vh;     /* let the final scene reach center above the rail */
+  }
+  .scene {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 24px 140px;     /* keep centered text clear of the timeline */
+    min-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: #fff;                          /* per-scene color set inline */
+  }
+  .scene.impact { min-height: 100vh; }
+
+  /* dramatic / pullquote text */
+  .scene .impact-text {
+    font-family: var(--chelt);
+    font-weight: 700;
+    font-size: clamp(44px, 7vw, 84px);
+    line-height: 1.0;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  /* italic lead — Imperial */
+  .scene .lead {
+    font-family: var(--imperial);
+    font-style: italic;
+    font-size: clamp(24px, 3.2vw, 34px);
+    line-height: 1.25;
+    margin: 0;
+  }
+  /* dense body copy — 20px */
+  .scene .body p {
+    font-family: var(--imperial-roman);
+    font-size: 20px;
+    line-height: 1.5;
+    margin: 0 0 1.1em;
+  }
+  .scene .body p:last-child { margin-bottom: 0; }
+
+  /* gentle reveal as each scene enters */
+  .scene .inner {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+  }
+  .scene.active .inner { opacity: 1; transform: none; }
+
+  /* gradient that dissolves scene text into the background above the rail */
+  .rail-fade {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: 210px;
+    z-index: 40;            /* above story text (10), below the rail (50) */
+    pointer-events: none;
+  }
+
+  /* ---------- Fixed horizontal timeline ---------- */
+  .rail {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: 110px;
+    z-index: 50;
+    pointer-events: none;
+  }
+  .rail .line {
+    position: absolute;
+    left: 6%; right: 6%;
+    bottom: var(--rail-bottom);
+    height: 1px;
+    background: var(--rail-ink, #000);
+    transition: background 0.9s var(--ease);
+  }
+
+  .tick {
+    position: absolute;
+    transform: translateX(-50%);
+    bottom: var(--rail-bottom);
+    width: 1px;
+    height: 7px;
+    background: var(--rail-tick, #cfcfcf);
+    opacity: 0;
+    transition: left 0.85s var(--ease), opacity 0.5s var(--ease),
+                height 0.4s var(--ease), background 0.9s var(--ease);
+  }
+  .tick.major { height: 11px; }
+  .tick .lbl {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 28px;                 /* dropped below the buildup mini-ticks */
+    font-family: var(--franklin);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--rail-label, #a9a9a9);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.45s var(--ease), color 0.9s var(--ease);
+  }
+  .tick.labeled .lbl { opacity: 1; }
+
+  .mark {
+    position: absolute;
+    bottom: 0;
+    transform: translateX(calc(-50% + var(--xoff, 0px)));   /* --xoff spreads same-year marks */
+    width: 30px;
+    height: 110px;
+    opacity: 0;
+    pointer-events: none;
+    transition: left 0.85s var(--ease), opacity 0.6s var(--ease), transform 0.5s var(--ease);
+  }
+  .mark.shown { opacity: 1; pointer-events: auto; cursor: pointer; }
+  .mark .hash {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: var(--rail-bottom);
+    width: var(--hash-w);
+    height: var(--hash-h);
+    background: var(--accent, var(--rail-ink, #000));   /* category color */
+    transition: height 0.15s ease, background 0.15s ease;
+  }
+  .mark.shown:hover .hash { height: 26px; }
+
+  /* "buildup" — mini ticks running back from an event showing how long it took.
+     Sits just under the line; grows leftward (from the event into the past). */
+  .buildup {
+    position: absolute;
+    bottom: calc(var(--rail-bottom) - 9px);
+    height: 8px;
+    pointer-events: none;
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: right center;
+    background-image: repeating-linear-gradient(to right,
+      var(--c, #888) 0 1px, transparent 1px 5px);
+    transition: opacity 0.4s var(--ease), transform 0.7s var(--ease),
+                left 0.85s var(--ease), width 0.85s var(--ease);
+  }
+  .buildup.shown { opacity: 0.85; transform: scaleX(1); }
+
+  /* highlighted personal/narrative marker (e.g. a family year) */
+  .mark.focus { pointer-events: none; }
+  .mark.focus .hash { background: var(--hl); height: 22px; }
+  .tick.focus .lbl { color: var(--hl); font-weight: 600; }
+
+  /* inline highlighted date in body copy */
+  .hl { color: var(--hl); }
+
+  /* arcs that draw from one year to another (forward/backward progress) */
+  .arcs {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .arcs path.arc {
+    fill: none;
+    stroke: var(--hl);
+    stroke-width: 1;
+    stroke-linecap: round;
+    stroke-dasharray: 1 4;     /* dotted */
+  }
+
+  /* ---------- Tooltip ---------- */
+  .tooltip {
+    position: fixed;
+    z-index: 60;
+    max-width: 320px;
+    background: #111;
+    color: #fff;
+    padding: 14px 16px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.14s ease, transform 0.14s ease;
+    pointer-events: none;
+  }
+  .tooltip.show { opacity: 1; transform: translateY(0); }
+  .tooltip .t-cat {
+    font-family: var(--franklin);
+    font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent, #9ad); margin-bottom: 6px;
+  }
+  .tooltip .t-title {
+    font-family: var(--franklin);
+    font-size: 16px; font-weight: 600; line-height: 1.25; margin-bottom: 7px;
+  }
+  .tooltip .t-desc {
+    font-family: var(--imperial-roman);
+    font-size: 14px; line-height: 1.45; color: #dcdcdc;
+  }
+  .tooltip::after {
+    content: "";
+    position: absolute; top: 100%;
+    left: var(--arrow-x, 50%); transform: translateX(-50%);
+    border: 7px solid transparent; border-top-color: #111;
+  }
+</style>
+</head>
+<body>
+
+  <div class="bg" id="bg">
+    <div class="photo" id="bgPhoto"></div>
+    <div class="scrim" id="bgScrim"></div>
+  </div>
+
+  <main class="story" id="story"><!-- scenes injected --></main>
+
+  <!-- gradient that fades scene text into the background just above the timeline -->
+  <div class="rail-fade" id="railFade"></div>
+
+  <div class="rail" id="rail">
+    <div class="line"></div>
+    <svg class="arcs" id="arcs"></svg>
+    <!-- ticks + marks injected -->
+  </div>
+
+  <div class="tooltip" id="tooltip">
+    <div class="t-cat"></div>
+    <div class="t-title"></div>
+    <div class="t-desc"></div>
+  </div>
+
+<!-- Story content lives here — edit story.js to change the narrative. -->
+<script src="story.js"></script>
+
+<script>
+  /* ============================================================
+     DATA
+     ============================================================ */
+  const CAT_COLOR = {
+    "Immigration":               "#F98649",   // orange
+    "Climate / Energy Security": "#57CA37",   // green
+    "Race & Voting Rights":      "#CA2B92",   // magenta
+    "Public Health":             "#10A7A2",   // teal
+  };
+
+  const EVENTS = [
+    // buildup = approximate years the achievement was in the making before it
+    // landed (drawn as mini ticks running back from the event). Edit freely.
+    { year: 1868, cat: "Immigration", title: "The 14th Amendment", buildup: 3,
+      desc: "Guarantees birthright citizenship to anyone born under the legal jurisdiction of the U.S. federal government." },
+    { year: 1963, cat: "Climate / Energy Security", title: "The Clean Air Act", buildup: 8,
+      desc: "Passed by Congress, allowing for federal regulation of air emissions and pollutants." },
+    { year: 1965, cat: "Race & Voting Rights", title: "The Voting Rights Act", buildup: 10,
+      desc: "Signed into law by Lyndon B. Johnson, prohibiting racial discrimination in voting and securing the right to vote for racial minorities." },
+    { year: 1965, cat: "Public Health", title: "Medicare Enacted", buildup: 20,
+      desc: "Under Title XVIII of the Social Security Act, Congress enacts Medicare to provide health care to people aged 65 and older." },
+    { year: 1970, cat: "Climate / Energy Security", title: "The EPA Is Established", buildup: 2,
+      desc: "The Environmental Protection Agency is formally established by the Nixon administration." },
+    { year: 2025, cat: "Immigration", title: "Birthright Citizenship Order",
+      desc: "President Trump signs an executive order seeking to end birthright citizenship." },
+    { year: 2025, cat: "Public Health", title: "The OBBB Act",
+      desc: "Cuts more than $1 trillion from Medicaid and the Affordable Care Act, raising premiums nationwide and reducing coverage." },
+    { year: 2026, cat: "Immigration", title: "The Killing of Renee Good",
+      desc: "Renee Good, a legal U.S. citizen, is shot and killed by ICE agents in Minneapolis." },
+    { year: 2026, cat: "Race & Voting Rights", title: "Louisiana Map Struck Down",
+      desc: "The Supreme Court strikes down a Louisiana congressional map — another blow to the Voting Rights Act." },
+    { year: 2026, cat: "Climate / Energy Security", title: "Greenhouse Gas Finding Rejected",
+      desc: "The administration rejects the bedrock finding that greenhouse gases harm human life; the EPA can no longer regulate them." },
+  ];
+
+  /* Mood presets — bg + text + rail colors. */
+  const MOODS = {
+    dark:    { bg: "#0f0f0f", fg: "#ffffff", rail: "#ffffff", tick: "#5a5a5a", label: "#8a8a8a", scrim: 0 },
+    /* photo beats — dark scrim + light rail so text/ticks stay legible over imagery */
+    colosseum: { bg: "#0a0a0a", fg: "#ffffff", rail: "#ffffff", tick: "#7a7a7a", label: "#bdbdbd", scrim: 0.5 },
+    topple:    { bg: "#0a0a0a", fg: "#ffffff", rail: "#ffffff", tick: "#7a7a7a", label: "#bdbdbd", scrim: 0.45 },
+    paper:   { bg: "#f4f1ea", fg: "#1a1a1a", rail: "#111111", tick: "#cfcac0", label: "#9a948a", scrim: 0 },
+    sand:    { bg: "#e7dfd0", fg: "#2a2620", rail: "#1a1a1a", tick: "#bcb19c", label: "#8a8170", scrim: 0 },
+    alarm:   { bg: "#2a0d0b", fg: "#f3dcd8", rail: "#f3dcd8", tick: "#7a3b35", label: "#b9786f", scrim: 0 },
+  };
+
+  /* STORY + FULL are defined in story.js (loaded before this script). */
+
+  /* ============================================================
+     BUILD
+     ============================================================ */
+  const PAD = 6, SPAN = 100 - PAD * 2;
+  const story = document.getElementById("story");
+  const bg = document.getElementById("bg");
+  const bgScrim = document.getElementById("bgScrim");
+  const bgPhoto = document.getElementById("bgPhoto");
+  const rail = document.getElementById("rail");
+  const railFade = document.getElementById("railFade");
+  const arcsSvg = document.getElementById("arcs");
+
+  // "#rrggbb" -> "rgba(r,g,b,a)"
+  const hexA = (hex, a) => {
+    const h = hex.replace("#", "");
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  };
+
+  // tooltip refs
+  const tip = document.getElementById("tooltip");
+  const tCat = tip.querySelector(".t-cat");
+  const tTitle = tip.querySelector(".t-title");
+  const tDesc = tip.querySelector(".t-desc");
+
+  // --- scenes ---
+  STORY.forEach((sc, i) => {
+    const s = document.createElement("section");
+    s.className = "scene " + (sc.type === "impact" ? "impact" : "body-scene");
+    s.dataset.i = i;
+    const m = MOODS[sc.mood];
+    s.style.color = m.fg;
+    s.innerHTML = '<div class="inner">' + sc.html + '</div>';
+    story.appendChild(s);
+  });
+
+  // --- timeline: persistent year ticks across the whole domain ---
+  const sorted = [...EVENTS].sort((a, b) => a.year - b.year);
+  const tickRefs = [];
+  for (let y = 1860; y <= 2300; y++) {
+    const t = document.createElement("div");
+    t.className = "tick";
+    t.innerHTML = '<span class="lbl"></span>';
+    rail.appendChild(t);
+    tickRefs.push({ el: t, lbl: t.querySelector(".lbl"), year: y });
+  }
+
+  const eventYears = new Set(sorted.map((e) => e.year));
+
+  const markRefs = sorted.map((ev, i) => {
+    const color = CAT_COLOR[ev.cat] || "#000";
+    const mark = document.createElement("div");
+    mark.className = "mark";
+    mark.style.setProperty("--accent", color);
+    mark.innerHTML = '<div class="hash"></div>';
+    mark.addEventListener("mouseenter", () => showTip(mark, ev, color));
+    mark.addEventListener("mouseleave", hideTip);
+    rail.appendChild(mark);
+
+    // optional "how long it took" mini-tick band, running back from the event
+    let buildupEl = null;
+    if (ev.buildup) {
+      buildupEl = document.createElement("div");
+      buildupEl.className = "buildup";
+      buildupEl.style.setProperty("--c", color);
+      rail.appendChild(buildupEl);
+    }
+    return { el: mark, ev, id: "e" + i, color, buildupEl };
+  });
+
+  // --- focus markers: highlighted yellow hashes for narrative years ---
+  const focusYears = new Set();
+  STORY.forEach((sc) => (sc.timeline.focus || []).forEach((y) => focusYears.add(y)));
+  const focusRefs = [...focusYears].map((year) => {
+    const mark = document.createElement("div");
+    mark.className = "mark focus";
+    mark.innerHTML = '<div class="hash"></div>';
+    rail.appendChild(mark);
+    return { el: mark, year, id: "p" + year };   // color omitted → arcs use default --hl
+  });
+
+  /* ============================================================
+     TIMELINE STATE
+     ============================================================ */
+  const xPct = (year, [s, e]) => PAD + ((year - s) / (e - s)) * SPAN;
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const RAIL_BOTTOM = 64;   // keep in sync with --rail-bottom
+
+  // dotted arcs, keyed so inherited arcs persist across beats (no re-animation);
+  // only arcs new to a beat draw on. Each arc takes the color of the event it links.
+  let arcClipId = 0;
+  const arcEls = new Map();   // key -> { path, clip, rect, anim }
+
+  function renderArcs(arcs, domain, animate) {
+    const w = rail.clientWidth;
+    const y0 = rail.clientHeight - RAIL_BOTTOM;          // y of the timeline line
+    const desired = new Map(arcs.map((a) => [a.key, a]));
+
+    // remove arcs that are no longer present
+    arcEls.forEach((rec, key) => {
+      if (!desired.has(key)) {
+        if (rec.anim) cancelAnimationFrame(rec.anim);
+        rec.path.remove();
+        rec.clip.remove();
+        arcEls.delete(key);
+      }
+    });
+
+    desired.forEach((a, key) => {
+      const x1 = (w * xPct(a.from, domain)) / 100 + (a.fromOffset || 0);   // origin (from)
+      const x2 = (w * xPct(a.to, domain)) / 100 + (a.toOffset || 0);       // destination (to)
+      const dx = Math.abs(x2 - x1);
+      const h = Math.max(22, Math.min(56, dx * 0.3));    // arc height above the line
+      const cx = (x1 + x2) / 2;
+      const d = `M ${x1} ${y0} Q ${cx} ${y0 - h} ${x2} ${y0}`;
+
+      const existing = arcEls.get(key);
+      if (existing) {
+        // inherited from a previous beat: update geometry/color, stay fully drawn
+        existing.path.setAttribute("d", d);
+        existing.path.style.stroke = a.color || "";
+        existing.rect.setAttribute("x", Math.min(x1, x2));
+        existing.rect.setAttribute("width", dx);
+        existing.rect.setAttribute("y", y0 - h - 1);
+        existing.rect.setAttribute("height", h + 2);
+        return;
+      }
+
+      // new arc
+      const id = "arcClip" + arcClipId++;
+      const clip = document.createElementNS(SVG_NS, "clipPath");
+      clip.setAttribute("class", "arcClip");
+      clip.setAttribute("id", id);
+      const rect = document.createElementNS(SVG_NS, "rect");
+      rect.setAttribute("y", y0 - h - 1);
+      rect.setAttribute("height", h + 2);
+      clip.appendChild(rect);
+      arcsSvg.appendChild(clip);
+
+      const p = document.createElementNS(SVG_NS, "path");
+      p.setAttribute("class", "arc");
+      p.setAttribute("d", d);
+      if (a.color) p.style.stroke = a.color;
+      p.setAttribute("clip-path", "url(#" + id + ")");
+      arcsSvg.appendChild(p);
+
+      const rec = { path: p, clip, rect, anim: null };
+      arcEls.set(key, rec);
+
+      // reveal 0..1 of the span, growing outward from the `from` end
+      const setReveal = (t) => {
+        const rw = dx * t;
+        rect.setAttribute("x", x2 >= x1 ? x1 : x1 - rw);
+        rect.setAttribute("width", rw);
+      };
+
+      if (!animate) { setReveal(1); return; }
+      setReveal(0);
+      const dur = 1100, easeOut = (u) => 1 - Math.pow(1 - u, 3);
+      let t0 = null;
+      const step = (ts) => {
+        if (t0 === null) t0 = ts;
+        const u = Math.min(1, (ts - t0) / dur);
+        setReveal(easeOut(u));
+        rec.anim = u < 1 ? requestAnimationFrame(step) : null;
+      };
+      rec.anim = requestAnimationFrame(step);
+    });
+  }
+
+  function updateTimeline(domain, reveal, focus = [], arcs = [], animateArcs = false,
+                          cats = [], labels = null, arcsFrom = null) {
+    const [start, end] = domain;
+    const inRange = (y) => y >= start && y <= end;
+    const focusSet = new Set(focus);
+    const catsSet = new Set(cats);
+    // which focus years get a year label (defaults to all focus years)
+    const labelSet = labels ? new Set(labels) : focusSet;
+
+    // event marks: shown by year (reveal) OR by category grouping (cats)
+    const shownEventYears = new Set();
+    const shownMarks = [];                 // {el, year, id, color, offset} for spreading + arcs
+    markRefs.forEach(({ el, ev, id, color, buildupEl }) => {
+      const show = inRange(ev.year) && (ev.year <= reveal || catsSet.has(ev.cat));
+      el.style.left = xPct(ev.year, domain) + "%";
+      el.classList.toggle("shown", show);
+      if (show) { shownEventYears.add(ev.year); shownMarks.push({ el, year: ev.year, id, color }); }
+
+      if (buildupEl) {
+        const l = xPct(ev.year - ev.buildup, domain);
+        const r = xPct(ev.year, domain);
+        buildupEl.style.left = l + "%";
+        buildupEl.style.width = (r - l) + "%";
+        buildupEl.classList.toggle("shown", show);
+      }
+    });
+
+    // a focused year is a personal (yellow) marker unless a policy event is
+    // revealed there *chronologically* (category groupings don't suppress it)
+    const personal = (year) =>
+      focusSet.has(year) && !(eventYears.has(year) && year <= reveal);
+
+    tickRefs.forEach(({ el, lbl, year }) => {
+      const ir = inRange(year);
+      el.style.left = xPct(year, domain) + "%";
+      el.style.opacity = ir ? "1" : "0";
+      const labeled = ir && (year % 50 === 0 || labelSet.has(year));
+      el.classList.toggle("labeled", labeled);
+      el.classList.toggle("major", labeled);
+      el.classList.toggle("focus", ir && personal(year));        // yellow label
+      if (labeled) lbl.textContent = year;
+    });
+
+    focusRefs.forEach(({ el, year, id }) => {
+      const show = inRange(year) && personal(year);
+      el.style.left = xPct(year, domain) + "%";
+      el.classList.toggle("shown", show);
+      if (show) shownMarks.push({ el, year, id, color: null });   // null → arc uses default --hl
+    });
+
+    // spread marks that share a year so they sit side by side instead of stacking
+    const SPREAD = 7;                       // px between same-year hashes
+    const groups = {};
+    shownMarks.forEach((m) => (groups[m.year] || (groups[m.year] = [])).push(m));
+    Object.values(groups).forEach((g) => {
+      g.forEach((m, i) => {
+        m.offset = (i - (g.length - 1) / 2) * SPREAD;
+        m.el.style.setProperty("--xoff", m.offset + "px");
+      });
+    });
+
+    // arcs: explicit ones (keyed), plus a fan from `arcsFrom` to every shown mark —
+    // one arc per event, colored like that event and aimed at its side-by-side hash
+    let allArcs = arcs.map((a) => ({ ...a, key: a.key || "x:" + a.from + "-" + a.to }));
+    if (arcsFrom != null) {
+      shownMarks.forEach((m) => {
+        if (m.year === arcsFrom) return;   // skip marks at the source year
+        allArcs.push({ key: m.id, from: arcsFrom, to: m.year, toOffset: m.offset, color: m.color });
+      });
+    }
+    renderArcs(allArcs, domain, animateArcs);
+  }
+
+  /* ============================================================
+     SCROLL → ACTIVE SCENE
+     ============================================================ */
+  let activeIdx = -1;
+  function activate(i) {
+    if (i === activeIdx) return;
+    activeIdx = i;
+    const sc = STORY[i];
+    const m = MOODS[sc.mood];
+
+    bg.style.backgroundColor = m.bg;
+    bgScrim.style.background = "rgba(0,0,0," + (m.scrim || 0) + ")";
+    // fade dissolves text into the mood background (or darkens over a photo)
+    const fadeHex = m.scrim ? "#000000" : m.bg;
+    railFade.style.background =
+      `linear-gradient(to top, ${hexA(fadeHex, 1)} 0%, ${hexA(fadeHex, 1)} 42%, ${hexA(fadeHex, 0)} 100%)`;
+    if (sc.photo) { bgPhoto.style.backgroundImage = "url(" + sc.photo + ")"; bgPhoto.style.opacity = 1; }
+    else bgPhoto.style.opacity = 0;
+
+    rail.style.setProperty("--rail-ink", m.rail);
+    rail.style.setProperty("--rail-tick", m.tick);
+    rail.style.setProperty("--rail-label", m.label);
+
+    const t = sc.timeline;
+    updateTimeline(t.domain, t.reveal, t.focus, t.arcs, true, t.cats, t.labels, t.arcsFrom);
+
+    document.querySelectorAll(".scene").forEach((el, idx) =>
+      el.classList.toggle("active", idx === i));
+  }
+
+  // fire when a scene crosses the vertical center of the viewport
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (en.isIntersecting) activate(+en.target.dataset.i);
+    });
+  }, { rootMargin: "-50% 0px -50% 0px", threshold: 0 });
+
+  document.querySelectorAll(".scene").forEach((el) => io.observe(el));
+
+  // initial paint
+  activate(0);
+
+  /* ============================================================
+     TOOLTIP
+     ============================================================ */
+  function showTip(mark, ev, color) {
+    tCat.textContent = ev.cat;
+    tTitle.textContent = ev.title;
+    tDesc.textContent = ev.desc;
+    tip.style.setProperty("--accent", color);
+
+    const r = mark.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    tip.classList.add("show");
+    const tw = tip.offsetWidth, th = tip.offsetHeight, margin = 10;
+    let left = cx - tw / 2;
+    left = Math.max(margin, Math.min(left, window.innerWidth - tw - margin));
+    tip.style.left = left + "px";
+    tip.style.top = (r.top - th - 14) + "px";
+    tip.style.setProperty("--arrow-x", (cx - left) + "px");
+  }
+  function hideTip() { tip.classList.remove("show"); }
+
+  window.addEventListener("resize", () => {
+    if (activeIdx >= 0) {
+      const t = STORY[activeIdx].timeline;
+      updateTimeline(t.domain, t.reveal, t.focus, t.arcs, false, t.cats, t.labels, t.arcsFrom);
+    }
+  });
+</script>
+</body>
+</html>
